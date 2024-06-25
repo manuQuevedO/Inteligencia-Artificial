@@ -4,21 +4,27 @@ import matplotlib.pyplot as plt
 import pickle
 import os
 
+# Función para guardar la tabla de preferencias en un archivo de texto
 def save_preferences(pref, filename):
     with open(filename, 'w') as f:
         for i in range(pref.shape[0]):
             for j in range(pref.shape[1]):
                 f.write(f"state({i},{j}): {pref[i, j]}\n")
 
+# Función para guardar las recompensas en un archivo de texto
 def save_rewards(rewards, filename):
     with open(filename, 'w') as f:
         for episode, reward in enumerate(rewards):
             f.write(f"Episode {episode}: {reward}\n")
 
+
+
+# Función softmax para calcular las probabilidades de acción
 def softmax(preferences):
     exp_preferences = np.exp(preferences - np.max(preferences))
     return exp_preferences / exp_preferences.sum()
 
+# Función principal para ejecutar el juego
 def run(episodes, is_training=True, render=False, alpha=0.01):
     env = gym.make('Taxi-v3', render_mode='human' if render else None)
 
@@ -29,27 +35,29 @@ def run(episodes, is_training=True, render=False, alpha=0.01):
             preferences = pickle.load(f)
 
     rewards_per_episode = np.zeros(episodes)
-    baseline = 0  # Recompensa promedio inicial
+    baseline = 0  # Se inicializa a 0. Este valor se actualizará continuamente para reflejar 
+                  # la recompensa promedio que el taxi espera recibir.
 
     for i in range(episodes):
-        state = env.reset()[0]
+        state = env.reset()[0]  # Reiniciar el entorno y obtener el estado inicial
 
-        terminated = False
-        truncated = False
-        rewards = 0
-        t = 0  # Step counter
+        terminated = False  # Indica si el episodio ha terminado
+        truncated = False  # Indica si el episodio ha sido truncado
+        rewards = 0  # Recompensa acumulada
+        t = 0  # Contador de pasos
 
         while not terminated and not truncated:
-            # Calculate action probabilities using softmax
+            # Calcular las probabilidades de acción usando softmax
             action_probabilities = softmax(preferences[state, :])
-            action = np.random.choice(np.arange(env.action_space.n), p=action_probabilities)
+            action = np.random.choice(np.arange(env.action_space.n), p=action_probabilities)  # Seleccionar la acción
 
-            new_state, reward, terminated, truncated, _ = env.step(action)
-            rewards += reward
+            new_state, reward, terminated, truncated, _ = env.step(action)  # Ejecutar la acción
+            rewards += reward  # Acumular la recompensa
 
+            # Aquí se actualizan las preferencias según la recompensa obtenida
             if is_training:
                 t += 1
-                # Update preferences
+                # Actualizar las preferencias
                 avg_reward = rewards / t
                 for a in range(env.action_space.n):
                     if a == action:
@@ -59,9 +67,9 @@ def run(episodes, is_training=True, render=False, alpha=0.01):
 
                 baseline += (reward - baseline) / t  # Actualizar el baseline
 
-            state = new_state
+            state = new_state  # Actualizar el estado actual
 
-        rewards_per_episode[i] = rewards
+        rewards_per_episode[i] = rewards  # Almacenar la recompensa del episodio
         baseline = (baseline * i + rewards) / (i + 1)  # Actualizar el baseline global
 
         if (i + 1) % 50 == 0:
@@ -78,6 +86,10 @@ def run(episodes, is_training=True, render=False, alpha=0.01):
         sum_rewards[t] = np.sum(rewards_per_episode[max(0, t-100):(t+1)])
 
     plt.plot(sum_rewards)
+    plt.xlabel('Episodios')
+    plt.ylabel('Recompensa Media')
+    plt.title('Recompensa Media por Episodio')
+    plt.grid(True)
     plt.savefig(os.path.join(script_dir, 'taxi.png'))
     plt.show()
 

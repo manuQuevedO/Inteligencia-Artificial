@@ -15,6 +15,7 @@ def save_rewards(rewards, filename):
         for episode, reward in enumerate(rewards):
             f.write(f"Episode {episode}: {reward}\n")
 
+# Función principal para ejecutar el juego
 def run(episodes, is_training=True, render=False, epsilon=1):
     env = gym.make('Taxi-v3', render_mode='human' if render else None)
 
